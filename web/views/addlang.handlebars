@@ -1,0 +1,75 @@
+<input placeholder="language" id="language">
+</br>
+<button id ="add"> add </button>
+<button id="back"> back </button>
+
+<div style="border: 1px solid black">
+    <h2>View List</h2>
+    <ul id="container">
+    </ul>
+</div>
+
+<script>
+    document.getElementById("back").addEventListener("click", function() {
+        window.location.href="/modify";
+    })
+
+    const init = () => {
+        fetch('/query/lang', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            } 
+        }).then(res => res.json())
+        .then(res => {
+            document.getElementById("container").innerHTML = ""
+            res.data.forEach(lang => {
+                const li = document.createElement("li")
+                li.innerHTML = 
+                `
+                    <span>id: ${lang.languageID}</span>
+                    <input placeholder="lang" value="${lang.languageName}" id="input${lang.languageID}">
+                    <button id="modify${lang.languageID}">modify</button>
+                    <button id="del${lang.languageID}">delete</button>
+                `
+                document.getElementById("container").appendChild(li)
+                document.getElementById(`del${lang.languageID}`).addEventListener("click", () => {
+                    fetch("/delete/lang", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            languageID: lang.languageID
+                        }),
+                        headers: {
+                            "Content-Type": "application/json",
+                        } 
+                    }).then(init)
+                })
+                document.getElementById(`modify${lang.languageID}`).addEventListener("click", () => {
+                    fetch("/update/lang", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            languageName: document.getElementById(`input${lang.languageID}`).value,
+                            languageID: lang.languageID
+                        }),
+                        headers: {
+                            "Content-Type": "application/json",
+                        } 
+                    })
+                })
+            })
+        })
+    }
+
+    document.getElementById("add").addEventListener("click", () => {
+        fetch("/insert/lang", {
+            method: "POST",
+            body: JSON.stringify({
+                languageName: document.getElementById("language").value
+            }),
+            headers: {
+                "Content-Type": "application/json",
+            } 
+        }).then(init)
+    })
+    init()
+</script>

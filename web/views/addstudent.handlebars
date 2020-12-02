@@ -1,0 +1,279 @@
+<input placeholder="studentID" id = "studentID">
+</br>
+<input placeholder="first name" id = "fname">
+</br>
+<input placeholder="last name" id = "lname">
+</br>
+<select id = "genders" class="genders">
+    <option value="" style="display: none">genders</option>
+</select>
+</br>
+<select id = "grades" class="grades">
+    <option value="" style="display: none">grades</option>
+</select>
+</br>
+<div >
+    <div id="languageContainer">
+        <select id = "language0" class="language">
+            <option value="" style="display: none">language</option>
+        </select>
+    </div>
+    <button id = "addLang">add language</button>
+    <button id = "removeLang">remove language</button>
+</div>
+</br>
+<button id = "add"> add </button>
+<button id="back"> back </button>
+
+<div style="border: 1px solid black">
+    <h2>View List</h2>
+    <ul id="container">
+
+    </ul>
+    <button id="refresh"> refresh </button>
+</div>
+
+<script>
+    let languageLen = 1
+    document.getElementById("back").addEventListener("click", function() {
+        window.location.href="/modify";
+    })
+
+    document.getElementById("add").addEventListener("click", () => {
+        const inputNames = [
+            "fname", "lname", "genders", "grades"
+        ]
+        const obj = {}
+        inputNames.forEach(name => {
+            const v = document.getElementById(name).value
+            obj[name] = v
+        })
+        const p1 = fetch("/insert", {
+            body: JSON.stringify({
+                sql: `INSERT INTO Students (fname, lname, studentGenders, studentGrades) VALUES ("${obj.fname}", "${obj.lname}", ${obj.genders}, ${obj.grades})`
+            }),
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        }).then(res => res.json())
+        .then(data => {
+            return data.data.insertId
+        }).then(id => {
+            const languages = Array.from(document.getElementById("languageContainer").getElementsByClassName("language")).map(s => s.value)
+            const p1 = fetch('/insert', {
+                body: JSON.stringify({
+                    sql: `INSERT INTO skill_table (personID, languageID) values ${languages.map(v => `(${id}, ${v})`).join(" , ")}`
+                }),
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            })
+            const studentID = document.getElementById("studentID").value
+            const p2 = fetch('/insert', {
+                body: JSON.stringify({
+                    sql: `INSERT INTO StudentID (personID, studentID) values (${id}, ${studentID})`
+                }),
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            })
+            return Promise.all([p1, p2])
+        }).then(getData)
+        
+    })
+
+    
+    document.getElementById("addLang").addEventListener("click", () => {
+        const container = document.getElementById("languageContainer")
+        const s = document.createElement("select")
+        s.id = `language${languageLen}`
+        s.className = "language"
+        s.innerHTML = `
+            <option value="" style="display: none">language</option>
+        `
+        container.appendChild(s)
+        languageLen += 1
+        initOne("language", "Languages", "languageName", "languageID", "language")
+    })
+
+
+    document.getElementById("removeLang").addEventListener("click", () => {
+        const container = document.getElementById("languageContainer")
+        container.removeChild(container.childNodes[container.childElementCount - 1])
+        languageLen -= 1
+    })
+
+
+    const initOne = (id, table, field, pk, classname) => {
+        fetch("/query", {
+            method: "POST",
+            body: JSON.stringify({
+                sql: `select * from ${table}`
+            }),
+            headers: {
+                "Content-Type": "application/json",
+            }
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (classname) {
+                const classes = Array.from(document.getElementsByClassName(classname))
+                classes.forEach(s => s.innerHTML = "")
+            }
+            res.data.forEach(d => {
+                if (classname) {
+                    const classes = Array.from(document.getElementsByClassName(classname))
+                    classes.forEach(select => {
+                        const node = document.createElement('option')
+                        node.innerText = d[field]
+                        node.value = d[pk]
+                        select.appendChild(node)
+                        if (select.getAttribute('initvalue') == node.value) {
+                            node.selected = true
+                        }
+                    })
+                    
+                }
+                else {
+                    const node = document.createElement('option')
+                    node.innerText = d[field]
+                    node.value = d[pk]
+                    document.getElementById(id).appendChild(node)
+                }
+            })
+        })
+    }
+
+    const getData = () => {
+        fetch('/query/student', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        }).then(data => data.json())
+        .then(data => {
+            return fetch("/query/skill_table", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                }
+            }).then(data => data.json())
+            .then(language => {
+                return {
+                    language,
+                    data
+                }
+            })
+        }).then(({data, language}) => {
+            const languages = language.data
+            const container = document.getElementById("container")
+            container.innerHTML = ""
+            data.data.forEach(item => {
+                const li = document.createElement("li")
+                const {
+                    studentID,
+                    fname,
+                    genderName,
+                    levelName,
+                    lname,
+                    studentGenders,
+                    studentGrades,
+                    personID
+                } = item
+                li.innerHTML = `
+                    <span>id: ${item.studentID}</span>
+                    <input placeholder="fname" value="${fname}" id="fname${personID}">
+                    <input placeholder="lname" value="${lname}" id="lname${personID}">
+                    <select class="genders" initvalue="${studentGenders}" id="genders${personID}"></select>
+                    <select class="grades" initvalue="${studentGrades}" id="grades${personID}"></select>
+                    <div>
+                    languages: 
+                    ${languages.filter(l => l.personID == item.personID)
+                        .map(l => `<select class="language" initvalue="${l.languageID}"></select>`).join("")}
+                    </div>
+                    <button id="modify${personID}">modify</button>
+                    <button id="delete${personID}">delete</button>
+                `
+                container.appendChild(li)
+                document.getElementById(`modify${personID}`).addEventListener("click", () => {
+                    const fname = document.getElementById(`fname${personID}`).value
+                    const lname = document.getElementById(`lname${personID}`).value
+                    const genderName = document.getElementById(`genders${personID}`).value
+                    const levelName = document.getElementById(`grades${personID}`).value
+                    const p1 = fetch("/update/student", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            fname,
+                            lname,
+                            genderName,
+                            levelName,
+                            personID
+                        }),
+                        headers: {
+                            "Content-Type": "application/json",
+                        } 
+                    })
+
+                    const langs = Array.from(li.getElementsByClassName("language")).map(node => node.value)
+                    const p2 = fetch("/delete/skill_table", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            personID
+                        }),
+                        headers: {
+                            "Content-Type": "application/json",
+                        } 
+                    }).then(() => {
+                        return fetch("/insert/skill_table", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                values: langs,
+                                personID
+                            }),
+                            headers: {
+                                "Content-Type": "application/json",
+                            } 
+                        })
+                    })
+
+                    Promise.all([p1, p2]).then(init)
+
+
+                    
+                })
+                document.getElementById(`delete${personID}`).addEventListener("click", () => {
+                    fetch("/delete/student", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            personID
+                        }),
+                        headers: {
+                            "Content-Type": "application/json",
+                        } 
+                    }).then(init)
+                })
+
+            })
+            
+        }).then(() => {
+            initOne("genders", "Genders", "genderName", "genderID", "genders")
+            initOne("grades", "Grades", "levelName", "gradesID", "grades")
+            initOne("language", "Languages", "languageName", "languageID", "language")
+        })
+    }
+    
+    document.getElementById("refresh").addEventListener("click", () => {
+        getData()
+    })
+
+    const init = () => {
+        initOne("genders", "Genders", "genderName", "genderID", "genders")
+        initOne("grades", "Grades", "levelName", "gradesID", "grades")
+        initOne("language", "Languages", "languageName", "languageID", "language")
+        getData()
+    }
+    init()
+</script>

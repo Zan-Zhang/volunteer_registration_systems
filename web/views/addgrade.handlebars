@@ -1,0 +1,74 @@
+<input placeholder="grade" id="grade">
+</br>
+<button id="add"> add </button>
+<button id="back"> back </button>
+
+<div style="border: 1px solid black">
+    <h2>View List</h2>
+    <ul id="container">
+    </ul>
+</div>
+
+<script>
+    document.getElementById("back").addEventListener("click", function() {
+        window.location.href="/modify";
+    })
+    const init = () => {
+        fetch('/query/grades', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            } 
+        }).then(res => res.json())
+        .then(res => {
+            document.getElementById("container").innerHTML = ""
+            res.data.forEach(grade => {
+                const li = document.createElement("li")
+                li.innerHTML = 
+                `
+                    <span>id: ${grade.gradesID}</span>
+                    <input placeholder="grade" value="${grade.levelName}" id="input${grade.gradesID}">
+                    <button id="modify${grade.gradesID}">modify</button>
+                    <button id="del${grade.gradesID}">delete</button>
+                `
+                document.getElementById("container").appendChild(li)
+                document.getElementById(`del${grade.gradesID}`).addEventListener("click", () => {
+                    fetch("/delete/grades", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            gradesID: grade.gradesID
+                        }),
+                        headers: {
+                            "Content-Type": "application/json",
+                        } 
+                    }).then(init)
+                })
+                document.getElementById(`modify${grade.gradesID}`).addEventListener("click", () => {
+                    fetch("/update/grades", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            gradesID: grade.gradesID,
+                            levelName: document.getElementById(`input${grade.gradesID}`).value
+                        }),
+                        headers: {
+                            "Content-Type": "application/json",
+                        } 
+                    })
+                })
+            })
+        })
+    }
+
+    document.getElementById("add").addEventListener("click", () => {
+        fetch("/insert/grades", {
+            method: "POST",
+            body: JSON.stringify({
+                levelName: document.getElementById("grade").value
+            }),
+            headers: {
+                "Content-Type": "application/json",
+            } 
+        }).then(init)
+    })
+    init()
+</script>

@@ -1,0 +1,74 @@
+<input placeholder="gender" id="gender">
+</br>
+<button id="add"> add </button>
+<button id="back"> back </button>
+
+<div style="border: 1px solid black">
+    <h2>View List</h2>
+    <ul id="container">
+    </ul>
+</div>
+
+<script>
+    document.getElementById("back").addEventListener("click", function() {
+        window.location.href="/modify";
+    })
+    const init = () => {
+        fetch('/query/genders', {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            } 
+        }).then(res => res.json())
+        .then(res => {
+            document.getElementById("container").innerHTML = ""
+            res.data.forEach(gender => {
+                const li = document.createElement("li")
+                li.innerHTML = 
+                `
+                    <span>id: ${gender.genderID}</span>
+                    <input placeholder="gender" value="${gender.genderName}" id="input${gender.genderID}">
+                    <button id="modify${gender.genderID}">modify</button>
+                    <button id="del${gender.genderID}">delete</button>
+                `
+                document.getElementById("container").appendChild(li)
+                document.getElementById(`del${gender.genderID}`).addEventListener("click", () => {
+                    fetch("/delete/genders", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            genderID: gender.genderID
+                        }),
+                    }).then(init)
+                })
+                document.getElementById(`modify${gender.genderID}`).addEventListener("click", () => {
+                    fetch("/update/genders", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            genderID: gender.genderID,
+                            genderName: document.getElementById(`input${gender.genderID}`).value
+                        }),
+                        headers: {
+                            "Content-Type": "application/json",
+                        } 
+                    })
+                })
+            })
+        })
+    }
+
+    document.getElementById("add").addEventListener("click", () => {
+        fetch("/insert/genders", {
+            method: "POST",
+            body: JSON.stringify({
+                genderName: document.getElementById("gender").value
+            }),
+            headers: {
+                "Content-Type": "application/json",
+            } 
+        }).then(init)
+    })
+    init()
+</script>

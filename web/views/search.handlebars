@@ -1,0 +1,124 @@
+<h2>filter conditions</h2>
+<input placeholder="studentID" id = "personID"> 
+<input placeholder="fname" id = "fname"> 
+<input placeholder="lname" id = "lname">
+<input placeholder="gender" id = "studentGenders">
+<input placeholder="grade" id = "studentGrades">
+<input placeholder="language" id = "language">
+</br>
+<button id = "search"> search </button>
+</br>
+<h2>result:</h2>
+<div style="border: 1px solid black" id = "container">
+</div>
+</br>
+
+</br>
+<button id="back">back home</button>
+
+<script>
+    document.getElementById("back").addEventListener("click", function() {
+        window.location.href="/";
+    })
+
+    document.getElementById("search").addEventListener("click", () => {
+        const inputIds = [
+            "personID", "fname", "lname", "studentGenders", "studentGrades"
+        ]
+        const values = inputIds.map(name => {
+            return {
+                name,
+                value: document.getElementById(name).value
+            }
+        }).filter(data => data.value)
+
+
+        const leftJoinIds = [
+            "studentGrades",
+            "studentGenders",
+            "personID"
+        ]
+        const leftJoins = leftJoinIds.map(name => {
+            return {
+                name,
+                value: document.getElementById(name).value
+            }
+        })
+
+        const tableMap = {
+            studentGrades: "Grades",
+            studentGenders: "Genders",
+            personID: "StudentID"
+        }
+
+        const fieldMap = {
+            studentGrades: "levelName",
+            studentGenders: "genderName",
+            personID: "studentID"
+        }
+
+        const idMap = {
+            studentGrades: "gradesID",
+            studentGenders: "genderID",
+            personID: "personID"
+        }
+        let leftStr = leftJoins.map(data => {
+            return ` left join ${tableMap[data.name]} on (Students.${data.name} = ${tableMap[data.name]}.${idMap[data.name]})`
+        }).join(" ")
+
+        const str = values => {
+            let sql = values.map(value => `${fieldMap[value.name] ? fieldMap[value.name] : value.name} = "${value.value}" `).join(' and ')
+            const langValue = document.getElementById("language").value
+            if (langValue) {
+                let head = ""
+                if (sql) {
+                    head = "and"
+                }
+                sql += `${head} Students.personID in (select personID from skill_table where languageID in (select languageID from Languages where Languages.languageName = "${langValue}"))`
+            }
+            return sql
+        }
+
+
+
+
+        let sql
+        if (values.length || document.getElementById("language").value) {
+            sql = "where "
+        } else {
+            sql = ""
+        }
+        sql += str(values)
+        
+        
+        fetch("/search", {
+            method: "POST",
+            body: JSON.stringify({
+                sql: `select * from Students ${leftStr} ${sql}`
+            }),
+            headers: {
+                "Content-Type": "application/json",
+            },
+        }).then(res => {
+            return res.json()
+        }).then(res => {
+            const {
+                data,
+                langs
+            } = res
+            const htmls = data.map(v => {
+                const {
+                    studentID,
+                    fname,
+                    lname,
+                    levelName: studentGrades,
+                    genderName: studentGenders,
+                    personID
+                } = v
+                const hasLangs = langs.filter(l => l.personID == personID).map(l => l.languageName)
+                return `<div>studentID: ${studentID}, fname: ${fname}, lname: ${lname}, studentGrades: ${studentGrades}, studentGenders: ${studentGenders}, langs: ${hasLangs.join(",")}</div>`
+            })
+            document.getElementById("container").innerHTML = `${htmls.join(`</br>`)}`
+        })
+    })
+</script>
